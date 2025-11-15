@@ -35,6 +35,48 @@ async function countDocuments() {
   return cds.length;
 }
 
+async function ensureSeeded() {
+  const cds = await loadCDs();
+  if (cds.length > 0) return;
+  const now = new Date().toISOString();
+  const seed = [
+    {
+      _id: crypto.randomUUID(),
+      title: 'Greatest Hits',
+      artist: 'The Classics',
+      genre: 'Pop',
+      year: 2001,
+      totalCopies: 3,
+      availableCopies: 3,
+      createdAt: now,
+      updatedAt: now,
+    },
+    {
+      _id: crypto.randomUUID(),
+      title: 'Jazz Essentials',
+      artist: 'Blue Note Trio',
+      genre: 'Jazz',
+      year: 1998,
+      totalCopies: 2,
+      availableCopies: 2,
+      createdAt: now,
+      updatedAt: now,
+    },
+    {
+      _id: crypto.randomUUID(),
+      title: 'Coding Focus',
+      artist: 'Lo-Fi Lab',
+      genre: 'Lo-Fi',
+      year: 2020,
+      totalCopies: 4,
+      availableCopies: 4,
+      createdAt: now,
+      updatedAt: now,
+    },
+  ];
+  await saveCDs(seed);
+}
+
 async function find() {
   const cds = await loadCDs();
   return cds.sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
@@ -104,4 +146,5 @@ module.exports = {
   findByIdAndUpdate,
   findByIdAndDelete,
   adjustAvailableCopies,
+  ensureSeeded,
 };

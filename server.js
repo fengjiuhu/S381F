@@ -12,6 +12,9 @@ const Loan = require('./models/Loan');
 dotenv.config();
 
 const PORT = process.env.PORT || 3000;
+const BORROW_TERM_DAYS = 30;
+const MAX_RENEWALS = 1;
+
 const app = express();
 
 app.use(morgan());
@@ -38,13 +41,27 @@ function requireAuth(req, res, next) {
   next();
 }
 
-User.ensureDefaultAdmin()
-  .then(() => {
-    console.log('Admin user ready (admin / admin123)');
-  })
-  .catch((error) => {
-    console.error('Unable to seed admin user', error);
-  });
+function requireRole(role) {
+  return (req, res, next) => {
+    if (!req.session.user || req.session.user.role !== role) {
+      res.status(403).json({ error: 'Forbidden' });
+      return;
+    }
+    next();
+  };
+}
+
+async function bootstrapData() {
+  try {
+    await User.ensureDefaultAdmin();
+    await CD.ensureSeeded();
+    console.log('Seed data ready. Admin login: admin / admin');
+  } catch (error) {
+    console.error('Unable to seed initial data', error);
+  }
+}
+
+bootstrapData();
 
 app.post('/api/login', async (req, res) => {
   const username = (req.body.username || '').trim();
@@ -58,7 +75,13 @@ app.post('/api/login', async (req, res) => {
     res.status(401).json({ error: 'Invalid username or password.' });
     return;
   }
-  req.session.user = { _id: user._id, username: user.username, role: user.role };
+  req.session.user = {
+    _id: user._id,
+    username: user.username,
+    role: user.role,
+    displayName: user.displayName,
+    email: user.email,
+  };
   res.json({ user: req.session.user });
 });
 
@@ -66,8 +89,14 @@ app.post('/api/register', async (req, res) => {
   const username = (req.body.username || '').trim();
   const password = req.body.password || '';
   const confirm = req.body.confirm || '';
-  if (!username || !password) {
-    res.status(400).json({ error: 'Username and password are required.' });
+  const displayName = (req.body.displayName || '').trim();
+  const email = (req.body.email || '').trim();
+  if (!username || !password || !displayName || !email) {
+    res.status(400).json({ error: 'Username, password, name, and email are required.' });
+    return;
+  }
+  if (username.toLowerCase() === 'admin') {
+    res.status(400).json({ error: 'This username is reserved.' });
     return;
   }
   if (password !== confirm) {
@@ -82,8 +111,20 @@ app.post('/api/register', async (req, res) => {
     res.status(409).json({ error: 'Username already exists.' });
     return;
   }
-  const newUser = await User.createWithPassword({ username, password, role: 'staff' });
-  const sessionUser = { _id: newUser._id, username: newUser.username, role: newUser.role };
+  const newUser = await User.createWithPassword({
+    username,
+    password,
+    role: 'member',
+    displayName,
+    email,
+  });
+  const sessionUser = {
+    _id: newUser._id,
+    username: newUser.username,
+    role: newUser.role,
+    displayName: newUser.displayName,
+    email: newUser.email,
+  };
   req.session.user = sessionUser;
   res.status(201).json({ user: sessionUser });
 });
@@ -101,7 +142,7 @@ app.get('/api/session', (req, res) => {
   res.json({ user: req.session.user });
 });
 
-app.get('/api/dashboard', requireAuth, async (req, res) => {
+app.get('/api/dashboard', requireAuth, requireRole('admin'), async (req, res) => {
   const [totalCDs, cdList, activeLoans, allLoans] = await Promise.all([
     CD.countDocuments(),
     CD.find(),
@@ -119,6 +160,56 @@ app.get('/api/dashboard', requireAuth, async (req, res) => {
   res.json({ stats, recentCDs });
 });
 
+function mapLoanMeta(loan) {
+  if (!loan) return null;
+  const now = new Date();
+  const due = loan.dueAt ? new Date(loan.dueAt) : null;
+  let daysRemaining = null;
+  if (due) {
+    const diff = Math.ceil((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    daysRemaining = diff;
+  }
+  const borrowedAt = loan.borrowedAt ? new Date(loan.borrowedAt) : null;
+  const daysBorrowed = borrowedAt
+    ? Math.ceil((now.getTime() - borrowedAt.getTime()) / (1000 * 60 * 60 * 24))
+    : null;
+  return {
+    _id: loan._id,
+    borrowerName: loan.borrowerName,
+    borrowerEmail: loan.borrowerEmail,
+    userId: loan.userId,
+    borrowedAt: loan.borrowedAt,
+    dueAt: loan.dueAt,
+    returnedAt: loan.returnedAt,
+    status: loan.status,
+    renewalsUsed: loan.renewalsUsed,
+    maxRenewals: loan.maxRenewals,
+    lastRenewedAt: loan.lastRenewedAt,
+    daysRemaining,
+    daysBorrowed,
+    isOverdue: typeof daysRemaining === 'number' && daysRemaining < 0 && loan.status === 'borrowed',
+  };
+}
+
+async function buildLibraryOverview() {
+  const [cds, loans] = await Promise.all([CD.find(), Loan.find()]);
+  const activeLoans = loans.filter((loan) => loan.status === 'borrowed');
+  return cds.map((cd) => {
+    const entries = activeLoans
+      .filter((loan) => loan.cdId === cd._id)
+      .map((loan) => mapLoanMeta(loan));
+    return {
+      ...cd,
+      activeLoans: entries,
+    };
+  });
+}
+
+app.get('/api/library', requireAuth, async (req, res) => {
+  const library = await buildLibraryOverview();
+  res.json(library);
+});
+
 app.get('/api/cds', requireAuth, async (req, res) => {
   const cds = await CD.find();
   res.json(cds);
@@ -133,7 +224,7 @@ app.get('/api/cds/:id', requireAuth, async (req, res) => {
   res.json(cd);
 });
 
-app.post('/api/cds', requireAuth, async (req, res) => {
+app.post('/api/cds', requireAuth, requireRole('admin'), async (req, res) => {
   const { title, artist, genre, year, totalCopies } = req.body;
   if (!title || !artist || !genre || !year || !totalCopies) {
     res.status(400).json({ error: 'All fields are required.' });
@@ -156,7 +247,7 @@ app.post('/api/cds', requireAuth, async (req, res) => {
   res.status(201).json(cd);
 });
 
-app.put('/api/cds/:id', requireAuth, async (req, res) => {
+app.put('/api/cds/:id', requireAuth, requireRole('admin'), async (req, res) => {
   const payload = { ...req.body };
   if (payload.year !== undefined) payload.year = Number(payload.year);
   if (payload.totalCopies !== undefined) payload.totalCopies = Number(payload.totalCopies);
@@ -176,7 +267,7 @@ app.put('/api/cds/:id', requireAuth, async (req, res) => {
   res.json(updated);
 });
 
-app.delete('/api/cds/:id', requireAuth, async (req, res) => {
+app.delete('/api/cds/:id', requireAuth, requireRole('admin'), async (req, res) => {
   const deleted = await CD.findByIdAndDelete(req.params.id);
   if (!deleted) {
     res.status(404).json({ error: 'Not found' });
@@ -196,7 +287,14 @@ app.post('/api/cds/:id/borrow', requireAuth, async (req, res) => {
     res.status(400).json({ error: 'No copies available.' });
     return;
   }
-  const { borrowerName, borrowerEmail } = req.body;
+  let borrowerName = (req.body.borrowerName || '').trim();
+  let borrowerEmail = (req.body.borrowerEmail || '').trim();
+  let userId = null;
+  if (req.session.user.role === 'member') {
+    borrowerName = req.session.user.displayName || req.session.user.username;
+    borrowerEmail = req.session.user.email || `${req.session.user.username}@local`;
+    userId = req.session.user._id;
+  }
   if (!borrowerName || !borrowerEmail) {
     res.status(400).json({ error: 'Borrower information is required.' });
     return;
@@ -209,6 +307,9 @@ app.post('/api/cds/:id/borrow', requireAuth, async (req, res) => {
     cdTitle: cd.title,
     status: 'borrowed',
     borrowedAt: new Date().toISOString(),
+    termDays: BORROW_TERM_DAYS,
+    maxRenewals: MAX_RENEWALS,
+    userId,
   });
   const updatedCd = await CD.findById(cd._id);
   res.json({ loan, cd: updatedCd });
@@ -216,8 +317,14 @@ app.post('/api/cds/:id/borrow', requireAuth, async (req, res) => {
 
 app.get('/api/loans', requireAuth, async (req, res) => {
   const { status } = req.query;
-  const loans = await Loan.find(status ? { status } : {});
-  const sorted = loans.sort((a, b) => new Date(b.borrowedAt || 0) - new Date(a.borrowedAt || 0));
+  const filter = status ? { status } : {};
+  if (req.session.user.role !== 'admin') {
+    filter.userId = req.session.user._id;
+  }
+  const loans = await Loan.find(filter);
+  const sorted = loans
+    .sort((a, b) => new Date(b.borrowedAt || 0) - new Date(a.borrowedAt || 0))
+    .map((loan) => mapLoanMeta(loan));
   res.json(sorted);
 });
 
@@ -225,6 +332,10 @@ app.post('/api/loans/:id/return', requireAuth, async (req, res) => {
   const loan = await Loan.findById(req.params.id);
   if (!loan) {
     res.status(404).json({ error: 'Loan not found.' });
+    return;
+  }
+  if (req.session.user.role !== 'admin' && loan.userId !== req.session.user._id) {
+    res.status(403).json({ error: 'You can only return your own loans.' });
     return;
   }
   if (loan.status !== 'returned') {
@@ -235,7 +346,34 @@ app.post('/api/loans/:id/return', requireAuth, async (req, res) => {
     await CD.adjustAvailableCopies(loan.cdId, 1);
   }
   const updatedLoan = await Loan.findById(loan._id);
-  res.json({ loan: updatedLoan });
+  res.json({ loan: mapLoanMeta(updatedLoan) });
+});
+
+app.post('/api/loans/:id/renew', requireAuth, async (req, res) => {
+  const loan = await Loan.findById(req.params.id);
+  if (!loan) {
+    res.status(404).json({ error: 'Loan not found.' });
+    return;
+  }
+  if (loan.status !== 'borrowed') {
+    res.status(400).json({ error: 'Only active loans can be renewed.' });
+    return;
+  }
+  if (req.session.user.role !== 'admin' && loan.userId !== req.session.user._id) {
+    res.status(403).json({ error: 'You can only renew your own loans.' });
+    return;
+  }
+  if (loan.renewalsUsed >= (loan.maxRenewals ?? MAX_RENEWALS)) {
+    res.status(400).json({ error: 'Renewal limit reached.' });
+    return;
+  }
+  const nextDueAt = Loan.calculateDueDate(loan.dueAt || loan.borrowedAt, BORROW_TERM_DAYS);
+  const updated = await Loan.findByIdAndUpdate(loan._id, {
+    dueAt: nextDueAt,
+    renewalsUsed: (loan.renewalsUsed || 0) + 1,
+    lastRenewedAt: new Date().toISOString(),
+  });
+  res.json({ loan: mapLoanMeta(updated) });
 });
 
 const indexFile = path.join(__dirname, 'public', 'index.html');

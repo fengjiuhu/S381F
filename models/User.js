@@ -28,7 +28,7 @@ async function usernameExists(username) {
   return users.some((user) => user.username.toLowerCase() === normalized);
 }
 
-async function createWithPassword({ username, password, role = 'staff' }) {
+async function createWithPassword({ username, password, role = 'member', displayName, email }) {
   const users = await loadUsers();
   const normalizedUsername = username.trim();
   const now = new Date().toISOString();
@@ -37,6 +37,8 @@ async function createWithPassword({ username, password, role = 'staff' }) {
     username: normalizedUsername,
     passwordHash: hashPassword(password),
     role,
+    displayName: displayName?.trim() || normalizedUsername,
+    email: email?.trim() || '',
     createdAt: now,
   };
   users.push(user);
@@ -45,15 +47,28 @@ async function createWithPassword({ username, password, role = 'staff' }) {
 }
 
 async function verifyCredentials(username, password) {
-  const user = await findOne({ username });
+  const users = await loadUsers();
+  const normalized = username.trim().toLowerCase();
+  const user =
+    users.find((entry) => entry.username && entry.username.toLowerCase() === normalized) || null;
   if (!user) return null;
-  return user.passwordHash === hashPassword(password) ? { ...user } : null;
+  if (user.passwordHash !== hashPassword(password)) return null;
+  const sanitized = { ...user };
+  sanitized.displayName = sanitized.displayName || sanitized.username;
+  sanitized.email = sanitized.email || '';
+  return sanitized;
 }
 
 async function ensureDefaultAdmin() {
   const admin = await findOne({ username: 'admin' });
   if (!admin) {
-    await createWithPassword({ username: 'admin', password: 'admin123', role: 'admin' });
+    await createWithPassword({
+      username: 'admin',
+      password: 'admin',
+      role: 'admin',
+      displayName: 'Library Administrator',
+      email: 'admin@local',
+    });
   }
 }
 

@@ -265,6 +265,54 @@ nav a {
   background: var(--accent);
 }
 
+.badge.danger {
+  background: var(--danger);
+}
+
+.loan-badges {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.loan-badges li {
+  display: flex;
+  gap: 0.35rem;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+
+.account-card dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.5rem 1.5rem;
+  margin: 1rem 0 0;
+}
+
+.account-card dt {
+  font-weight: 600;
+}
+
+.account-card dd {
+  margin: 0;
+  color: #555;
+}
+
+.stat-list {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.stat-list li {
+  display: flex;
+  justify-content: space-between;
+}
+
 footer {
   text-align: center;
   padding: 2rem;

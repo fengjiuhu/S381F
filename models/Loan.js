@@ -23,6 +23,13 @@ async function findById(id) {
   return loans.find((loan) => loan._id === id) || null;
 }
 
+function calculateDueDate(borrowedAt, extensionDays = 30) {
+  const start = borrowedAt ? new Date(borrowedAt) : new Date();
+  const due = new Date(start.getTime());
+  due.setDate(due.getDate() + extensionDays);
+  return due.toISOString();
+}
+
 async function create(data) {
   const loans = await loadLoans();
   const now = new Date().toISOString();
@@ -35,6 +42,11 @@ async function create(data) {
     status: data.status || 'borrowed',
     borrowedAt: data.borrowedAt ? new Date(data.borrowedAt).toISOString() : now,
     returnedAt: data.returnedAt ? new Date(data.returnedAt).toISOString() : null,
+    dueAt: data.dueAt || calculateDueDate(data.borrowedAt || now, data.termDays || 30),
+    renewalsUsed: data.renewalsUsed || 0,
+    maxRenewals: data.maxRenewals ?? 1,
+    lastRenewedAt: data.lastRenewedAt ? new Date(data.lastRenewedAt).toISOString() : null,
+    userId: data.userId || null,
     createdAt: now,
     updatedAt: now,
   };
@@ -76,4 +88,5 @@ module.exports = {
   create,
   findByIdAndUpdate,
   deleteMany,
+  calculateDueDate,
 };
