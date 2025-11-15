@@ -1,0 +1,35 @@
+<section>
+  <h2>Active Loans</h2>
+  <p>Track which CDs are currently on loan and who borrowed them.</p>
+  <% if (loans.length === 0) { %>
+    <p>Everything is back on the shelf. No active loans right now.</p>
+  <% } else { %>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>CD</th>
+          <th>Borrower</th>
+          <th>Email</th>
+          <th>Borrowed At</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <% loans.forEach(function(loan){ %>
+          <tr>
+            <td><a href="/cds/<%= loan.cdId %>"><%= loan.cdTitle %></a></td>
+            <td><%= loan.borrowerName %></td>
+            <td><%= loan.borrowerEmail %></td>
+            <td><%= loan.borrowedAt ? new Date(loan.borrowedAt).toLocaleString() : '' %></td>
+            <td>
+              <form method="post" action="/loans/<%= loan._id %>?_method=PUT" style="display:inline;">
+                <input type="hidden" name="action" value="return">
+                <button class="button success" type="submit">Mark Returned</button>
+              </form>
+            </td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  <% } %>
+</section>

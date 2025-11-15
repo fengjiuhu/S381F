@@ -1,0 +1,61 @@
+<section>
+  <h2><%= cd.title %></h2>
+  <p style="color:#555;">by <strong><%= cd.artist %></strong> · <%= cd.genre %> · <%= cd.year %></p>
+  <p>Copies available: <span class="badge <%= cd.availableCopies > 0 ? 'available' : 'unavailable' %>"><%= cd.availableCopies %>/<%= cd.totalCopies %></span></p>
+  <div class="actions" style="margin:1.5rem 0;">
+    <a href="/cds/<%= cd._id %>/edit" class="button secondary">Edit CD</a>
+    <a href="/cds" class="button">Back to list</a>
+    <form method="post" action="/cds/<%= cd._id %>?_method=DELETE">
+      <button type="submit" class="button danger" onclick="return confirm('Delete this CD?');">Delete</button>
+    </form>
+  </div>
+
+  <section style="margin-top:2rem;">
+    <h3>Borrow this CD</h3>
+    <% if (cd.availableCopies > 0) { %>
+      <form method="post" action="/cds/<%= cd._id %>/borrow" class="form-grid" style="max-width:520px;">
+        <div>
+          <label for="borrowerName">Borrower Name</label>
+          <input type="text" id="borrowerName" name="borrowerName" required>
+        </div>
+        <div>
+          <label for="borrowerEmail">Borrower Email</label>
+          <input type="email" id="borrowerEmail" name="borrowerEmail" required>
+        </div>
+        <button type="submit" class="button success">Confirm Borrow</button>
+      </form>
+    <% } else { %>
+      <p class="flash info">All copies are currently borrowed. Return a copy to lend again.</p>
+    <% } %>
+  </section>
+
+  <section style="margin-top:2rem;">
+    <h3>Recent Loans</h3>
+    <% if (loans.length === 0) { %>
+      <p>No loans recorded for this CD yet.</p>
+    <% } else { %>
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Borrower</th>
+            <th>Email</th>
+            <th>Status</th>
+            <th>Borrowed</th>
+            <th>Returned</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% loans.forEach(function(loan){ %>
+            <tr>
+              <td><%= loan.borrowerName %></td>
+              <td><%= loan.borrowerEmail %></td>
+              <td><span class="badge <%= loan.status === 'returned' ? 'available' : 'unavailable' %>"><%= loan.status %></span></td>
+              <td><%= loan.borrowedAt ? new Date(loan.borrowedAt).toLocaleString() : '' %></td>
+              <td><%= loan.returnedAt ? new Date(loan.returnedAt).toLocaleString() : '-' %></td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    <% } %>
+  </section>
+</section>
