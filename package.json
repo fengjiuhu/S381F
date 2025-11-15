@@ -8,9 +8,9 @@
   },
   "keywords": [
     "express",
-    "ejs",
+    "spa",
     "borrowing",
-    "in-memory"
+    "vanilla-js"
   ],
   "author": "",
   "license": "MIT",
