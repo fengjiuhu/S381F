@@ -22,12 +22,19 @@ async function findOne(filter) {
   );
 }
 
+async function usernameExists(username) {
+  const users = await loadUsers();
+  const normalized = username.trim().toLowerCase();
+  return users.some((user) => user.username.toLowerCase() === normalized);
+}
+
 async function createWithPassword({ username, password, role = 'staff' }) {
   const users = await loadUsers();
+  const normalizedUsername = username.trim();
   const now = new Date().toISOString();
   const user = {
     _id: crypto.randomUUID(),
-    username,
+    username: normalizedUsername,
     passwordHash: hashPassword(password),
     role,
     createdAt: now,
@@ -56,4 +63,5 @@ module.exports = {
   findOne,
   ensureDefaultAdmin,
   hashPassword,
+  usernameExists,
 };

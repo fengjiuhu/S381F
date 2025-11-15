@@ -1,6 +1,7 @@
 const state = {
   user: null,
   view: 'dashboard',
+  authMode: 'login',
   dashboard: null,
   cds: [],
   loans: [],
@@ -50,12 +51,15 @@ function setUser(user) {
   state.user = user;
   if (!user) {
     state.view = 'dashboard';
+    state.authMode = 'login';
     state.dashboard = null;
     state.cds = [];
     state.loans = [];
+    state.cdSearch = '';
     renderNav();
-    renderLogin();
+    renderAuth();
   } else {
+    state.authMode = 'login';
     renderNav();
     loadView(state.view);
   }
@@ -105,16 +109,19 @@ function renderNav() {
   navEl.appendChild(userArea);
 }
 
-function renderLogin() {
-  titleEl.textContent = 'Sign in';
+function renderAuth() {
+  const isRegister = state.authMode === 'register';
+  titleEl.textContent = isRegister ? 'Sign up' : 'Sign in';
   viewEl.innerHTML = '';
   const card = document.createElement('div');
   card.className = 'auth-card';
   const heading = document.createElement('h2');
-  heading.textContent = 'Welcome back';
+  heading.textContent = isRegister ? 'Create your account' : 'Welcome back';
   const description = document.createElement('p');
   description.className = 'muted';
-  description.textContent = 'Use the admin account (admin / admin123) to sign in.';
+  description.textContent = isRegister
+    ? 'Register as a staff member to manage the CD library.'
+    : 'Use your credentials or the admin account (admin / admin123).';
   const form = document.createElement('form');
   form.className = 'form-grid';
   const userLabel = document.createElement('label');
@@ -131,22 +138,52 @@ function renderLogin() {
   passInput.name = 'password';
   passInput.required = true;
   passInput.autocomplete = 'current-password';
+  if (isRegister) {
+    passInput.autocomplete = 'new-password';
+  }
+  let confirmLabel;
+  let confirmInput;
+  if (isRegister) {
+    confirmLabel = document.createElement('label');
+    confirmLabel.textContent = 'Confirm password';
+    confirmInput = document.createElement('input');
+    confirmInput.type = 'password';
+    confirmInput.name = 'confirm';
+    confirmInput.required = true;
+    confirmInput.autocomplete = 'new-password';
+  }
   const submit = document.createElement('button');
   submit.type = 'submit';
   submit.className = 'button';
-  submit.textContent = 'Sign in';
+  submit.textContent = isRegister ? 'Create account' : 'Sign in';
   form.appendChild(userLabel);
   form.appendChild(userInput);
   form.appendChild(passLabel);
   form.appendChild(passInput);
+  if (isRegister) {
+    form.appendChild(confirmLabel);
+    form.appendChild(confirmInput);
+  }
   form.appendChild(submit);
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
     clearMessages();
     try {
-      const payload = { username: userInput.value.trim(), password: passInput.value.trim() };
-      const result = await api('/api/login', { method: 'POST', body: payload });
-      showMessage('success', `Welcome back ${result.user.username}`);
+      const payload = {
+        username: userInput.value.trim(),
+        password: passInput.value,
+      };
+      if (isRegister) {
+        if (passInput.value !== confirmInput.value) {
+          showMessage('error', 'Passwords do not match.');
+          return;
+        }
+        payload.confirm = confirmInput.value;
+      }
+      const endpoint = isRegister ? '/api/register' : '/api/login';
+      const result = await api(endpoint, { method: 'POST', body: payload });
+      const greeting = isRegister ? 'Account created for' : 'Welcome back';
+      showMessage('success', `${greeting} ${result.user.username}`);
       setUser(result.user);
     } catch (error) {
       showMessage('error', error.message);
@@ -155,6 +192,16 @@ function renderLogin() {
   card.appendChild(heading);
   card.appendChild(description);
   card.appendChild(form);
+  const toggle = document.createElement('button');
+  toggle.type = 'button';
+  toggle.className = 'link-button';
+  toggle.textContent = isRegister ? 'Have an account? Sign in' : 'Need an account? Sign up';
+  toggle.addEventListener('click', () => {
+    state.authMode = isRegister ? 'login' : 'register';
+    clearMessages();
+    renderAuth();
+  });
+  card.appendChild(toggle);
   viewEl.appendChild(card);
   userInput.focus();
 }

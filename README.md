@@ -27,8 +27,8 @@ The bundled stack works on Render without extra configuration. Just push the rep
 
 ## 4. Operation Guides
 
-### Login / Logout Flow
-1. Visit the site root (`/`) and sign in with the seeded admin account (`admin` / `admin123`).
+### Login / Logout / Registration Flow
+1. Visit the site root (`/`) and either register a new staff account or sign in with existing credentials (the seeded admin account is `admin` / `admin123`).
 2. After authentication the dashboard loads automatically.
 3. Use the **Logout** button in the top navigation to end your session.
 
@@ -40,6 +40,7 @@ The bundled stack works on Render without extra configuration. Just push the rep
 ### RESTful CRUD Services
 All API routes require an authenticated session (log in first).
 - `POST /api/login` – start a session (JSON body: `username`, `password`).
+- `POST /api/register` – create a staff account and begin a session (JSON body: `username`, `password`, `confirm`).
 - `POST /api/logout` – destroy the current session.
 - `GET /api/session` – retrieve the authenticated user.
 - `GET /api/dashboard` – aggregate inventory statistics and list recently added CDs.

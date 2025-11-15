@@ -47,7 +47,8 @@ User.ensureDefaultAdmin()
   });
 
 app.post('/api/login', async (req, res) => {
-  const { username, password } = req.body;
+  const username = (req.body.username || '').trim();
+  const password = req.body.password || '';
   if (!username || !password) {
     res.status(400).json({ error: 'Username and password are required.' });
     return;
@@ -59,6 +60,32 @@ app.post('/api/login', async (req, res) => {
   }
   req.session.user = { _id: user._id, username: user.username, role: user.role };
   res.json({ user: req.session.user });
+});
+
+app.post('/api/register', async (req, res) => {
+  const username = (req.body.username || '').trim();
+  const password = req.body.password || '';
+  const confirm = req.body.confirm || '';
+  if (!username || !password) {
+    res.status(400).json({ error: 'Username and password are required.' });
+    return;
+  }
+  if (password !== confirm) {
+    res.status(400).json({ error: 'Passwords do not match.' });
+    return;
+  }
+  if (username.length < 3 || password.length < 6) {
+    res.status(400).json({ error: 'Use at least 3 characters for username and 6 for password.' });
+    return;
+  }
+  if (await User.usernameExists(username)) {
+    res.status(409).json({ error: 'Username already exists.' });
+    return;
+  }
+  const newUser = await User.createWithPassword({ username, password, role: 'staff' });
+  const sessionUser = { _id: newUser._id, username: newUser.username, role: newUser.role };
+  req.session.user = sessionUser;
+  res.status(201).json({ user: sessionUser });
 });
 
 app.post('/api/logout', (req, res) => {
