@@ -1,0 +1,49 @@
+<section>
+  <div style="display:flex; justify-content:space-between; align-items:center;">
+    <div>
+      <h2>CD Library</h2>
+      <p>Keep your shelves organised and make sure discs are ready for borrowing.</p>
+    </div>
+    <a href="/cds/new" class="button">Add CD</a>
+  </div>
+  <input type="search" placeholder="Search CD title or artist" oninput="filterTable(event)">
+  <table class="table" id="cd-table">
+    <thead>
+      <tr>
+        <th>Title</th>
+        <th>Artist</th>
+        <th>Genre</th>
+        <th>Year</th>
+        <th>Copies</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      <% cds.forEach(function(cd){ %>
+        <tr>
+          <td><a href="/cds/<%= cd._id %>"><%= cd.title %></a></td>
+          <td><%= cd.artist %></td>
+          <td><%= cd.genre %></td>
+          <td><%= cd.year %></td>
+          <td><span class="badge <%= cd.availableCopies > 0 ? 'available' : 'unavailable' %>"><%= cd.availableCopies %>/<%= cd.totalCopies %></span></td>
+          <td class="actions">
+            <a href="/cds/<%= cd._id %>/edit" class="button secondary">Edit</a>
+            <form method="post" action="/cds/<%= cd._id %>?_method=DELETE" style="display:inline;">
+              <button type="submit" class="button danger" onclick="return confirm('Delete this CD?');">Delete</button>
+            </form>
+          </td>
+        </tr>
+      <% }); %>
+    </tbody>
+  </table>
+</section>
+<script>
+function filterTable(event) {
+  var value = event.target.value.toLowerCase();
+  var rows = document.querySelectorAll('#cd-table tbody tr');
+  rows.forEach(function(row) {
+    var text = row.innerText.toLowerCase();
+    row.style.display = text.includes(value) ? '' : 'none';
+  });
+}
+</script>

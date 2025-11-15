@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= pageTitle %> | CD Borrowing</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header>
+    <h1>CD Borrowing Desk</h1>
+    <nav>
+      <% if (currentUser) { %>
+        <a href="/">Dashboard</a>
+        <a href="/cds">CD Library</a>
+        <a href="/loans">Active Loans</a>
+        <a href="/loans/history">Loan History</a>
+        <a href="/logout">Logout</a>
+      <% } else { %>
+        <a href="/login">Login</a>
+      <% } %>
+    </nav>
+  </header>
+  <div class="container">
+    <% if (flashMessages && flashMessages.length) { %>
+      <% flashMessages.forEach(function(message){ %>
+        <div class="flash <%= message.type %>"><%= message.message %></div>
+      <% }); %>
+    <% } %>
+    <%- body %>
+  </div>
+  <footer>
+    <small>Built for COMP SD project · CD Borrowing Service</small>
+  </footer>
+</body>
+</html>
