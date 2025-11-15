@@ -1,11 +1,10 @@
 const path = require('path');
-const express = require('express');
-const session = require('express-session');
-const methodOverride = require('method-override');
-const morgan = require('morgan');
-const mongoose = require('mongoose');
-const ejs = require('ejs');
-const dotenv = require('dotenv');
+const express = require('./lib/express');
+const session = require('./lib/express-session');
+const methodOverride = require('./lib/method-override');
+const morgan = require('./lib/morgan');
+const ejs = require('./lib/ejs');
+const dotenv = require('./lib/dotenv');
 
 const User = require('./models/User');
 const CD = require('./models/CD');
@@ -14,8 +13,6 @@ const Loan = require('./models/Loan');
 dotenv.config();
 
 const PORT = process.env.PORT || 3000;
-const MONGO_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/cd-borrowing';
-
 const app = express();
 app.engine('ejs', ejs.__express);
 app.set('view engine', 'ejs');
@@ -26,7 +23,12 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 app.use(methodOverride('_method'));
-app.use(session({ secret: 'cd-borrowing-secret', cookie: { path: '/', httpOnly: true, maxAge: 1000 * 60 * 60 * 24 } }));
+app.use(
+  session({
+    secret: 'cd-borrowing-secret',
+    cookie: { path: '/', httpOnly: true, maxAge: 1000 * 60 * 60 * 24 },
+  }),
+);
 
 app.use((req, res, next) => {
   req.session = req.session || {};
@@ -66,17 +68,12 @@ function requireAuth(req, res, next) {
   next();
 }
 
-mongoose
-  .connect(MONGO_URI)
-  .then(async () => {
-    const admin = await User.findOne({ username: 'admin' });
-    if (!admin) {
-      await User.createWithPassword({ username: 'admin', password: 'admin123', role: 'admin' });
-      console.log('Seeded default admin user (admin / admin123)');
-    }
+User.ensureDefaultAdmin()
+  .then(() => {
+    console.log('Admin user ready (admin / admin123)');
   })
   .catch((error) => {
-    console.error('Failed to initialise data store', error);
+    console.error('Unable to seed admin user', error);
   });
 
 app.get('/login', (req, res) => {
@@ -182,20 +179,16 @@ app.get('/cds/:id/edit', requireAuth, async (req, res) => {
 
 app.put('/cds/:id', requireAuth, async (req, res) => {
   const { title, artist, genre, year, totalCopies, availableCopies } = req.body;
-  const updated = await CD.findByIdAndUpdate(
-    req.params.id,
-    {
-      $set: {
-        title,
-        artist,
-        genre,
-        year: Number(year),
-        totalCopies: Number(totalCopies),
-        availableCopies: Math.min(Number(totalCopies), Number(availableCopies)),
-      },
-    },
-    { new: true },
-  );
+  const total = Number(totalCopies);
+  const available = Math.min(total, Number(availableCopies));
+  const updated = await CD.findByIdAndUpdate(req.params.id, {
+    title,
+    artist,
+    genre,
+    year: Number(year),
+    totalCopies: total,
+    availableCopies: Number.isFinite(available) ? available : total,
+  });
   if (!updated) {
     req.flash('error', 'CD not found.');
   } else {
@@ -233,15 +226,14 @@ app.post('/cds/:id/borrow', requireAuth, async (req, res) => {
     res.redirect(`/cds/${cd._id}`);
     return;
   }
-  cd.availableCopies = (cd.availableCopies || 0) - 1;
-  await cd.save();
+  await CD.adjustAvailableCopies(cd._id, -1);
   await Loan.create({
     borrowerName,
     borrowerEmail,
     cdId: cd._id,
     cdTitle: cd.title,
     status: 'borrowed',
-    borrowedAt: new Date(),
+    borrowedAt: new Date().toISOString(),
   });
   req.flash('success', `${borrowerName} borrowed ${cd.title}.`);
   res.redirect(`/cds/${cd._id}`);
@@ -265,14 +257,11 @@ app.put('/loans/:id', requireAuth, async (req, res) => {
     return;
   }
   if (req.body.action === 'return' && loan.status !== 'returned') {
-    loan.status = 'returned';
-    loan.returnedAt = new Date();
-    await loan.save();
-    const cd = await CD.findById(loan.cdId);
-    if (cd) {
-      cd.availableCopies = Math.min((cd.availableCopies || 0) + 1, cd.totalCopies || (cd.availableCopies || 0) + 1);
-      await cd.save();
-    }
+    await Loan.findByIdAndUpdate(loan._id, {
+      status: 'returned',
+      returnedAt: new Date().toISOString(),
+    });
+    await CD.adjustAvailableCopies(loan.cdId, 1);
     req.flash('success', `${loan.cdTitle} returned.`);
   }
   res.redirect('/loans');
@@ -280,7 +269,7 @@ app.put('/loans/:id', requireAuth, async (req, res) => {
 
 app.get('/api/cds', requireAuth, async (req, res) => {
   const cds = await CD.find();
-  res.json(cds.map((cd) => cd.toObject()));
+  res.json(cds);
 });
 
 app.get('/api/cds/:id', requireAuth, async (req, res) => {
@@ -289,7 +278,7 @@ app.get('/api/cds/:id', requireAuth, async (req, res) => {
     res.status(404).json({ error: 'Not found' });
     return;
   }
-  res.json(cd.toObject());
+  res.json(cd);
 });
 
 app.post('/api/cds', requireAuth, async (req, res) => {
@@ -306,20 +295,33 @@ app.post('/api/cds', requireAuth, async (req, res) => {
     totalCopies: Number(totalCopies),
     availableCopies: Number(totalCopies),
   });
-  res.status(201).json(cd.toObject());
+  res.status(201).json(cd);
 });
 
 app.put('/api/cds/:id', requireAuth, async (req, res) => {
-  const updated = await CD.findByIdAndUpdate(
-    req.params.id,
-    { $set: req.body },
-    { new: true },
-  );
+  const payload = { ...req.body };
+  if (payload.year !== undefined) {
+    payload.year = Number(payload.year);
+  }
+  if (payload.totalCopies !== undefined) {
+    payload.totalCopies = Number(payload.totalCopies);
+  }
+  if (payload.availableCopies !== undefined) {
+    payload.availableCopies = Number(payload.availableCopies);
+  }
+  if (
+    Number.isFinite(payload.totalCopies) &&
+    Number.isFinite(payload.availableCopies) &&
+    payload.availableCopies > payload.totalCopies
+  ) {
+    payload.availableCopies = payload.totalCopies;
+  }
+  const updated = await CD.findByIdAndUpdate(req.params.id, payload);
   if (!updated) {
     res.status(404).json({ error: 'Not found' });
     return;
   }
-  res.json(updated.toObject());
+  res.json(updated);
 });
 
 app.delete('/api/cds/:id', requireAuth, async (req, res) => {

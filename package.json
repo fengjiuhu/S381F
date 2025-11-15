@@ -9,8 +9,8 @@
   "keywords": [
     "express",
     "ejs",
-    "mongoose",
-    "borrowing"
+    "borrowing",
+    "in-memory"
   ],
   "author": "",
   "license": "MIT",

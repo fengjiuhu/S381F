@@ -5,15 +5,15 @@
 - **Group:** Demo Group (replace with your information)
 - **Members:** (add your names and student IDs here)
 
-This project delivers a complete borrowing workflow for compact discs. Staff members can manage their CD inventory, issue discs to patrons, and track returns via both web UI and RESTful APIs. The application runs with the provided lightweight Express/Mongoose compatible stack so it can execute on Render without extra services.
+This project delivers a complete borrowing workflow for compact discs. Staff members can manage their CD inventory, issue discs to patrons, and track returns via both web UI and RESTful APIs. The application runs on a bundled, dependency-free Express-like stack so it can execute on Render without provisioning databases or installing packages.
 
 ## 2. Project File Intro
 - **server.js** – boots the Express server, wires middleware, seeds the default admin account, defines page routes, and exposes the RESTful API endpoints.
-- **package.json** – contains project metadata and npm scripts (`npm start`). No third-party downloads are required because the minimal runtime libraries are bundled under `node_modules`.
+- **package.json** – contains project metadata and npm scripts (`npm start`). No third-party downloads are required because the minimal runtime helpers live inside the repository.
 - **views/** – EJS templates for each page (`layout.ejs`, `login.ejs`, `dashboard.ejs`, and the CD/Loan subfolders).
 - **public/** – static assets such as `styles.css` for the user interface.
-- **models/** – data schemas implemented with the embedded mongoose-compatible layer (`User.js`, `CD.js`, `Loan.js`). Data is persisted in JSON files inside `data/` at runtime.
-- **node_modules/** – handcrafted implementations of the required libraries (`express`, `express-session`, `mongoose`, `ejs`, `method-override`, `morgan`, `dotenv`). They mirror the APIs used in this coursework while avoiding external installations.
+- **models/** – JSON-backed data helpers (`User.js`, `CD.js`, `Loan.js`) that persist information to files in `data/` at runtime.
+- **lib/** – handcrafted implementations of the necessary middleware (`express`, `express-session`, `ejs`, `method-override`, `morgan`, `dotenv`). They mirror the APIs used in this coursework while avoiding external installations.
 
 Feel free to add optional folders (e.g., `routes/`, `tests/`) if you extend the project later.
 

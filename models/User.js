@@ -1,31 +1,59 @@
 const crypto = require('crypto');
-const mongoose = require('mongoose');
+const { readCollection, writeCollection } = require('./storage');
 
-const userSchema = new mongoose.Schema({
-  username: String,
-  passwordHash: String,
-  role: { type: String, default: 'staff' },
-  createdAt: { type: Date, default: () => new Date() },
-});
+const USERS_FILE = 'users.json';
 
-const User = mongoose.model('User', userSchema);
+async function loadUsers() {
+  return readCollection(USERS_FILE, []);
+}
+
+async function saveUsers(users) {
+  await writeCollection(USERS_FILE, users);
+}
 
 function hashPassword(password) {
   return crypto.createHash('sha256').update(password).digest('hex');
 }
 
-User.createWithPassword = async function createWithPassword({ username, password, role }) {
-  const passwordHash = hashPassword(password);
-  return User.create({ username, passwordHash, role });
-};
+async function findOne(filter) {
+  const users = await loadUsers();
+  return (
+    users.find((user) => Object.entries(filter).every(([key, value]) => user[key] === value)) || null
+  );
+}
 
-User.verifyCredentials = async function verifyCredentials(username, password) {
-  const user = await User.findOne({ username });
+async function createWithPassword({ username, password, role = 'staff' }) {
+  const users = await loadUsers();
+  const now = new Date().toISOString();
+  const user = {
+    _id: crypto.randomUUID(),
+    username,
+    passwordHash: hashPassword(password),
+    role,
+    createdAt: now,
+  };
+  users.push(user);
+  await saveUsers(users);
+  return { ...user };
+}
+
+async function verifyCredentials(username, password) {
+  const user = await findOne({ username });
   if (!user) return null;
-  const passwordHash = hashPassword(password);
-  if (user.passwordHash !== passwordHash) return null;
-  return user;
-};
+  return user.passwordHash === hashPassword(password) ? { ...user } : null;
+}
 
-module.exports = User;
-module.exports.hashPassword = hashPassword;
+async function ensureDefaultAdmin() {
+  const admin = await findOne({ username: 'admin' });
+  if (!admin) {
+    await createWithPassword({ username: 'admin', password: 'admin123', role: 'admin' });
+  }
+}
+
+module.exports = {
+  createWithPassword,
+  verifyCredentials,
+  findOne,
+  ensureDefaultAdmin,
+  hashPassword,
+};
