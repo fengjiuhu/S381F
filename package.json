@@ -1,0 +1,18 @@
+{
+  "name": "s381f",
+  "version": "1.0.0",
+  "description": "CD borrowing management website for COMP3810 coursework",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [
+    "express",
+    "ejs",
+    "borrowing",
+    "in-memory"
+  ],
+  "author": "",
+  "license": "MIT",
+  "type": "commonjs"
+}

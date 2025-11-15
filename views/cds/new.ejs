@@ -1,0 +1,28 @@
+<section>
+  <h2>Add New CD</h2>
+  <p>Catalog a new CD to make it available for borrowing.</p>
+  <form method="post" action="/cds" class="form-grid" style="max-width:520px;">
+    <div>
+      <label for="title">Title</label>
+      <input type="text" id="title" name="title" required>
+    </div>
+    <div>
+      <label for="artist">Artist</label>
+      <input type="text" id="artist" name="artist" required>
+    </div>
+    <div>
+      <label for="genre">Genre</label>
+      <input type="text" id="genre" name="genre" required>
+    </div>
+    <div>
+      <label for="year">Release Year</label>
+      <input type="number" id="year" name="year" min="1900" max="2100" required>
+    </div>
+    <div>
+      <label for="totalCopies">Total Copies</label>
+      <input type="number" id="totalCopies" name="totalCopies" min="1" value="1" required>
+    </div>
+    <button type="submit" class="button">Save CD</button>
+    <a href="/cds" class="button secondary">Cancel</a>
+  </form>
+</section>
