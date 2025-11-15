@@ -1,0 +1,30 @@
+<section>
+  <h2>Loan History</h2>
+  <p>Complete log of borrowing events for auditing and follow-up.</p>
+  <% if (loans.length === 0) { %>
+    <p>No loans have been recorded yet.</p>
+  <% } else { %>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>CD</th>
+          <th>Borrower</th>
+          <th>Status</th>
+          <th>Borrowed</th>
+          <th>Returned</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% loans.forEach(function(loan){ %>
+          <tr>
+            <td><a href="/cds/<%= loan.cdId %>"><%= loan.cdTitle %></a></td>
+            <td><%= loan.borrowerName %> (<%= loan.borrowerEmail %>)</td>
+            <td><span class="badge <%= loan.status === 'returned' ? 'available' : 'unavailable' %>"><%= loan.status %></span></td>
+            <td><%= loan.borrowedAt ? new Date(loan.borrowedAt).toLocaleString() : '' %></td>
+            <td><%= loan.returnedAt ? new Date(loan.returnedAt).toLocaleString() : '-' %></td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  <% } %>
+</section>
