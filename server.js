@@ -160,7 +160,7 @@ app.get('/api/dashboard', requireAuth, requireRole('admin'), async (req, res) =>
   res.json({ stats, recentCDs });
 });
 
-function mapLoanMeta(loan) {
+function mapLoanMeta(loan, cd) {
   if (!loan) return null;
   const now = new Date();
   const due = loan.dueAt ? new Date(loan.dueAt) : null;
@@ -173,8 +173,12 @@ function mapLoanMeta(loan) {
   const daysBorrowed = borrowedAt
     ? Math.ceil((now.getTime() - borrowedAt.getTime()) / (1000 * 60 * 60 * 24))
     : null;
+  const cdTitle = loan.cdTitle || (cd && cd.title) || 'Unknown CD';
+  const cdId = loan.cdId || (cd && cd._id) || null;
   return {
     _id: loan._id,
+    cdId,
+    cdTitle,
     borrowerName: loan.borrowerName,
     borrowerEmail: loan.borrowerEmail,
     userId: loan.userId,
@@ -197,7 +201,7 @@ async function buildLibraryOverview() {
   return cds.map((cd) => {
     const entries = activeLoans
       .filter((loan) => loan.cdId === cd._id)
-      .map((loan) => mapLoanMeta(loan));
+      .map((loan) => mapLoanMeta(loan, cd));
     return {
       ...cd,
       activeLoans: entries,
@@ -321,10 +325,14 @@ app.get('/api/loans', requireAuth, async (req, res) => {
   if (req.session.user.role !== 'admin') {
     filter.userId = req.session.user._id;
   }
-  const loans = await Loan.find(filter);
+  const [loans, cds] = await Promise.all([Loan.find(filter), CD.find()]);
+  const cdIndex = cds.reduce((map, cd) => {
+    map[cd._id] = cd;
+    return map;
+  }, {});
   const sorted = loans
     .sort((a, b) => new Date(b.borrowedAt || 0) - new Date(a.borrowedAt || 0))
-    .map((loan) => mapLoanMeta(loan));
+    .map((loan) => mapLoanMeta(loan, cdIndex[loan.cdId]));
   res.json(sorted);
 });
 

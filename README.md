@@ -68,6 +68,37 @@ Then visit `http://localhost:3000` in your browser. When running locally, data p
 
 The local JSON "database" seeds the following records on first boot:
 - Administrator account `admin` / `admin`
-- Three example CDs (`Greatest Hits`, `Jazz Essentials`, `Coding Focus`) so the library view is populated immediately.
+- Iconic CDs such as *Thriller*, *Back in Black*, *Abbey Road*, and *The Dark Side of the Moon* so the library view is populated immediately.
+
+### Quick cURL Smoke Tests
+Use these commands against `http://localhost:3000` or your Render URL. Cookies are persisted between calls via `cookies.txt`.
+
+```sh
+# Log in as the built-in admin
+curl -X POST https://your-app.onrender.com/api/login \
+  -H "Content-Type: application/json" \
+  -c cookies.txt \
+  -d '{"username":"admin","password":"admin"}'
+
+# Register a member (sample)
+curl -X POST https://your-app.onrender.com/api/register \
+  -H "Content-Type: application/json" \
+  -b cookies.txt -c cookies.txt \
+  -d '{"username":"demo","password":"password","confirm":"password","displayName":"Demo User","email":"demo@example.com"}'
+
+# Check the current session
+curl -X GET https://your-app.onrender.com/api/session -b cookies.txt
+
+# List the library with loan status (member view works too)
+curl -X GET https://your-app.onrender.com/api/library -b cookies.txt
+
+# Borrow a CD by id (replace <CD_ID> from the library response)
+curl -X POST https://your-app.onrender.com/api/cds/<CD_ID>/borrow \
+  -H "Content-Type: application/json" \
+  -b cookies.txt -d '{}'
+
+# Return a loan by id (replace <LOAN_ID> from the loans response)
+curl -X POST https://your-app.onrender.com/api/loans/<LOAN_ID>/return -b cookies.txt
+```
 
 Add automated tests if needed. Manual testing steps and screenshots can be documented here for grading.

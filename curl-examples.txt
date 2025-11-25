@@ -1,0 +1,36 @@
+# Quick curl samples for https://s381f-tf08.onrender.com/
+# Save cookies.txt in current directory so subsequent commands share the session.
+
+# 1) Login as seeded admin (username: admin, password: admin)
+curl -X POST https://s381f-tf08.onrender.com/api/login \
+  -H "Content-Type: application/json" \
+  -c cookies.txt \
+  -d '{"username":"admin","password":"admin"}'
+
+# 2) Register a new member account (replace placeholders)
+curl -X POST https://s381f-tf08.onrender.com/api/register \
+  -H "Content-Type: application/json" \
+  -b cookies.txt -c cookies.txt \
+  -d '{"username":"alice","password":"secret","confirm":"secret","displayName":"Alice Example","email":"alice@example.com"}'
+
+# 3) Fetch available CDs as logged-in user
+curl https://s381f-tf08.onrender.com/api/library \
+  -b cookies.txt
+
+# 4) Borrow a CD by id (replace <cdId> from library response)
+curl -X POST https://s381f-tf08.onrender.com/api/cds/<cdId>/borrow \
+  -H "Content-Type: application/json" \
+  -b cookies.txt -c cookies.txt \
+  -d '{}'
+
+# 5) View your loans
+curl https://s381f-tf08.onrender.com/api/loans \
+  -b cookies.txt
+
+# 6) Return a loan by id (replace <loanId> from prior response)
+curl -X POST https://s381f-tf08.onrender.com/api/loans/<loanId>/return \
+  -b cookies.txt
+
+# 7) Renew a loan by id (if renewal is still available)
+curl -X POST https://s381f-tf08.onrender.com/api/loans/<loanId>/renew \
+  -b cookies.txt
