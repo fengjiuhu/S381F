@@ -1,0 +1,57 @@
+<section>
+  <h2>Welcome back, <%= currentUser.username %>!</h2>
+  <p>Track CD availability, manage new borrow requests, and keep your music inventory tidy.</p>
+  <div class="cards" style="margin-top:2rem;">
+    <div class="card">
+      <h3>CD Titles</h3>
+      <p style="font-size:2.5rem; font-weight:700; margin:0;"><%= stats.totalCDs %></p>
+      <p>Total unique CDs catalogued in the system.</p>
+      <a href="/cds" class="button secondary">Manage Library</a>
+    </div>
+    <div class="card">
+      <h3>Available Copies</h3>
+      <p style="font-size:2.5rem; font-weight:700; margin:0;"><%= stats.availableCopies %></p>
+      <p>Discs ready to be borrowed right now.</p>
+      <a href="/cds" class="button">Check Availability</a>
+    </div>
+    <div class="card">
+      <h3>Active Loans</h3>
+      <p style="font-size:2.5rem; font-weight:700; margin:0;"><%= stats.activeLoans %></p>
+      <p>Borrowers currently enjoying CDs.</p>
+      <a href="/loans" class="button">View Active Loans</a>
+    </div>
+    <div class="card">
+      <h3>Total Loans</h3>
+      <p style="font-size:2.5rem; font-weight:700; margin:0;"><%= stats.totalLoans %></p>
+      <p>Complete borrowing history recorded.</p>
+      <a href="/loans/history" class="button secondary">See History</a>
+    </div>
+  </div>
+  <section style="margin-top:3rem;">
+    <h3>Recently Added CDs</h3>
+    <% if (recentCDs.length === 0) { %>
+      <p>No CDs yet. Add your first disc to start lending!</p>
+    <% } else { %>
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>Artist</th>
+            <th>Genre</th>
+            <th>Available</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% recentCDs.forEach(function(cd){ %>
+            <tr>
+              <td><a href="/cds/<%= cd._id %>"><%= cd.title %></a></td>
+              <td><%= cd.artist %></td>
+              <td><%= cd.genre %></td>
+              <td><span class="badge <%= cd.availableCopies > 0 ? 'available' : 'unavailable' %>"><%= cd.availableCopies %>/<%= cd.totalCopies %></span></td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    <% } %>
+  </section>
+</section>
